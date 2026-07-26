@@ -1,6 +1,6 @@
 # Go REST API with PostgreSQL
 
-A production-ready REST API built with Go, PostgreSQL, and the Repository-Service-Handler architecture.
+A  REST API built with Go, PostgreSQL, and the Repository-Service-Handler architecture.
 
 This project demonstrates how to build a clean and maintainable backend using dependency injection, layered architecture, and PostgreSQL connection pooling.
 
@@ -339,7 +339,6 @@ DELETE /books/1
 
 # Future Improvements
 
-- Update Book endpoint
 - Pagination
 - Filtering
 - Search
