@@ -19,6 +19,9 @@ This project demonstrates how to build a clean and maintainable backend using de
 - Logging Middleware
 - Graceful HTTP Server Configuration
 - Pagination
+- Filtering
+- Search
+- Validation
 
 ---
 
@@ -352,10 +355,6 @@ DELETE /books/1
 
 # Future Improvements
 
-
-- Filtering
-- Search
-- Validation
 - JWT Authentication
 - Swagger/OpenAPI
 - Docker Support
