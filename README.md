@@ -18,6 +18,7 @@ This project demonstrates how to build a clean and maintainable backend using de
 - Environment Configuration (.env)
 - Logging Middleware
 - Graceful HTTP Server Configuration
+- Pagination
 
 ---
 
@@ -339,7 +340,7 @@ DELETE /books/1
 
 # Future Improvements
 
-- Pagination
+
 - Filtering
 - Search
 - Validation
