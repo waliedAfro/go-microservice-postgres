@@ -1,0 +1,10 @@
+
+Most Go companies use pgxpool, not database/sql, because:
+
+faster
+native PostgreSQL support
+automatic connection pooling
+actively maintained
+
+go get github.com/jackc/pgx/v5
+go get github.com/jackc/pgx/v5/pgxpool
