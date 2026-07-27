@@ -21,7 +21,12 @@ func NewBookHandler(service service.BookService) *BookHandler {
 
 // GET /books
 func (h *BookHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
-	books, err := h.service.GetAllBooks()
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	books, err := h.service.GetAllBooks(page, limit)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

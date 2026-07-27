@@ -1,9 +1,12 @@
 package repository
 
-import "go-microservice-postgres/internal/models"
+import (
+	"go-microservice-postgres/internal/common/pagination"
+	"go-microservice-postgres/internal/models"
+)
 
 type BookRepository interface {
-	FindAll() ([]models.BookModel, error)
+	FindAll(page, limit int) (*pagination.PaginationResponse[models.BookModel], error)
 	FindByID(id int) (*models.BookModel, error)
 	Create(book *models.BookModel) (*models.BookModel, error)
 	Update(book *models.BookModel) (*models.BookModel, error)

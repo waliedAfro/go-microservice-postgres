@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"go-microservice-postgres/internal/common/pagination"
 	"go-microservice-postgres/internal/models"
 )
 
@@ -18,13 +20,46 @@ func NewPostgresBookRepository(db *pgxpool.Pool) *PostgresBookRepository {
 	}
 }
 
-func (r *PostgresBookRepository) FindAll() ([]models.BookModel, error) {
+func (r *PostgresBookRepository) FindAll(page, limit int) (*pagination.PaginationResponse[models.BookModel], error) {
 
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 10
+	}
+
+	// Prevent clients from requesting huge pages
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset := (page - 1) * limit
+
+	// Get total number of books
+	var total int
+
+	err := r.db.QueryRow(
+		context.Background(),
+		`SELECT COUNT(*) FROM books`,
+	).Scan(&total)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve current page
 	rows, err := r.db.Query(
 		context.Background(),
-		`SELECT id, title, author
-		 FROM books
-		 ORDER BY id`,
+		`
+		SELECT id, title, author
+		FROM books
+		ORDER BY id
+		LIMIT $1 OFFSET $2
+		`,
+		limit,
+		offset,
 	)
 
 	if err != nil {
@@ -32,19 +67,39 @@ func (r *PostgresBookRepository) FindAll() ([]models.BookModel, error) {
 	}
 	defer rows.Close()
 
-	var books []models.BookModel
+	books := make([]models.BookModel, 0, limit)
 
 	for rows.Next() {
 		var book models.BookModel
 
-		if err := rows.Scan(&book.ID, &book.Title, &book.Author); err != nil {
+		if err := rows.Scan(
+			&book.ID,
+			&book.Title,
+			&book.Author,
+		); err != nil {
 			return nil, err
 		}
 
 		books = append(books, book)
 	}
 
-	return books, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	response := &pagination.PaginationResponse[models.BookModel]{
+		Page:        page,
+		Limit:       limit,
+		Total:       total,
+		TotalPages:  totalPages,
+		HasNext:     page < totalPages,
+		HasPrevious: page > 1,
+		Data:        books,
+	}
+
+	return response, nil
 }
 
 func (r *PostgresBookRepository) FindByID(id int) (*models.BookModel, error) {

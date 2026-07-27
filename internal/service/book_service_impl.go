@@ -1,12 +1,13 @@
 package service
 
 import (
+	"go-microservice-postgres/internal/common/pagination"
 	"go-microservice-postgres/internal/models"
 	"go-microservice-postgres/internal/repository"
 )
 
 type bookService struct {
-	repo repository.BookRepository
+	repo repository.BookRepository // repoistory interface
 }
 
 func NewBookService(repo repository.BookRepository) BookService {
@@ -15,8 +16,8 @@ func NewBookService(repo repository.BookRepository) BookService {
 	}
 }
 
-func (s *bookService) GetAllBooks() ([]models.BookModel, error) {
-	return s.repo.FindAll()
+func (s *bookService) GetAllBooks(page, limit int) (*pagination.PaginationResponse[models.BookModel], error) {
+	return s.repo.FindAll(page, limit)
 }
 
 func (s *bookService) GetBookByID(id int) (*models.BookModel, error) {
