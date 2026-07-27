@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"go-microservice-postgres/internal/models"
+	"go-microservice-postgres/internal/dto"
 	"go-microservice-postgres/internal/service"
+	"go-microservice-postgres/internal/validation"
 )
 
 type BookHandler struct {
@@ -22,10 +23,9 @@ func NewBookHandler(service service.BookService) *BookHandler {
 // GET /books
 func (h *BookHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
 
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	filter := HandleSearchParam(r)
 
-	books, err := h.service.GetAllBooks(page, limit)
+	books, err := h.service.GetAllBooks(filter)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -56,14 +56,24 @@ func (h *BookHandler) GetBookByID(w http.ResponseWriter, r *http.Request) {
 
 // POST /books
 func (h *BookHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
-	var book models.BookModel
 
-	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	var req dto.CreateBookRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	createdBook, err := h.service.CreateBook(&book)
+	if errs := validation.Validate(req); len(errs) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"errors": errs,
+		})
+		return
+	}
+
+	createdBook, err := h.service.CreateBook(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,5 +107,30 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 
 	if data != nil {
 		_ = json.NewEncoder(w).Encode(data)
+	}
+}
+
+func HandleSearchParam(r *http.Request) *dto.BookFilter {
+
+	query := r.URL.Query()
+
+	// Handle pagination with fallback defaults
+	page, err := strconv.Atoi(query.Get("page"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(query.Get("limit"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	return &dto.BookFilter{
+		Page:   page,
+		Limit:  limit,
+		Search: query.Get("search"),
+		Title:  query.Get("title"),
+		Author: query.Get("author"),
+		Sort:   query.Get("sort"),
 	}
 }

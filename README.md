@@ -25,7 +25,7 @@ This project demonstrates how to build a clean and maintainable backend using de
 # Project Structure
 
 ```
-
+internal 
 ├── config/
 │   └── config.go
 ├── database/
@@ -36,11 +36,23 @@ This project demonstrates how to build a clean and maintainable backend using de
 │   └── logging.go
 ├── models/
 │   └── book.go
+├── dto/
+│      create_book_request.go
+│      update_book_request.go
+│      book_filter.go
+│
+├── validation/
+│      validator.go
 ├── repository/
 │   └── postgres_book_repository.go
+    └──postgres_book_repository.go
+    └──helper
+        └──generate_query.go
 ├── service/
 │   └── bool_service_imp.go
-        book_service.go
+├       book_service.go
+├── common
+├   └──pagination.go
 |   
 ├── main.go
 ├── go.mod

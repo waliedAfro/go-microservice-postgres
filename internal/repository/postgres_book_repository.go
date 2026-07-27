@@ -2,12 +2,15 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go-microservice-postgres/internal/common/pagination"
+	"go-microservice-postgres/internal/dto"
 	"go-microservice-postgres/internal/models"
+	"go-microservice-postgres/internal/repository/helper"
 )
 
 type PostgresBookRepository struct {
@@ -20,54 +23,55 @@ func NewPostgresBookRepository(db *pgxpool.Pool) *PostgresBookRepository {
 	}
 }
 
-func (r *PostgresBookRepository) FindAll(page, limit int) (*pagination.PaginationResponse[models.BookModel], error) {
+func (r *PostgresBookRepository) FindAll(filter *dto.BookFilter) (*pagination.PaginationResponse[models.BookModel], error) {
 
-	if page < 1 {
-		page = 1
-	}
+	page, limit, offset := helper.BuildPagination(filter)
 
-	if limit < 1 {
-		limit = 10
-	}
+	// ------------------------------------------------------------------
+	// Whitelist sorting columns
+	// ------------------------------------------------------------------
+	sortColumn, sortDirection := helper.BuildOrderBy(filter.Sort)
 
-	// Prevent clients from requesting huge pages
-	if limit > 100 {
-		limit = 100
-	}
+	baseQuery, args, index := helper.BuildWhereClause(filter)
 
-	offset := (page - 1) * limit
+	// ------------------------------------------------------------------
+	// Count query
+	// ------------------------------------------------------------------
+	countQuery := "SELECT COUNT(*) " + baseQuery
 
-	// Get total number of books
 	var total int
 
-	err := r.db.QueryRow(
-		context.Background(),
-		`SELECT COUNT(*) FROM books`,
-	).Scan(&total)
-
+	err := r.db.QueryRow(context.Background(), countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, err
 	}
 
-	// Retrieve current page
-	rows, err := r.db.Query(
-		context.Background(),
-		`
+	// ------------------------------------------------------------------
+	// Data query
+	// ------------------------------------------------------------------
+	query := fmt.Sprintf(`
 		SELECT id, title, author
-		FROM books
-		ORDER BY id
-		LIMIT $1 OFFSET $2
-		`,
-		limit,
-		offset,
+		%s
+		ORDER BY %s %s
+		LIMIT $%d
+		OFFSET $%d
+	`,
+		baseQuery,
+		sortColumn,
+		sortDirection,
+		index,
+		index+1,
 	)
 
+	args = append(args, filter.Limit, offset)
+
+	rows, err := r.db.Query(context.Background(), query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	books := make([]models.BookModel, 0, limit)
+	books := make([]models.BookModel, 0, *limit)
 
 	for rows.Next() {
 		var book models.BookModel
@@ -87,19 +91,20 @@ func (r *PostgresBookRepository) FindAll(page, limit int) (*pagination.Paginatio
 		return nil, err
 	}
 
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-
-	response := &pagination.PaginationResponse[models.BookModel]{
-		Page:        page,
-		Limit:       limit,
-		Total:       total,
-		TotalPages:  totalPages,
-		HasNext:     page < totalPages,
-		HasPrevious: page > 1,
-		Data:        books,
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(*limit)))
 	}
 
-	return response, nil
+	return &pagination.PaginationResponse[models.BookModel]{
+		Page:        *page,
+		Limit:       *limit,
+		Total:       total,
+		TotalPages:  totalPages,
+		HasNext:     *page < totalPages,
+		HasPrevious: *page > 1,
+		Data:        books,
+	}, nil
 }
 
 func (r *PostgresBookRepository) FindByID(id int) (*models.BookModel, error) {
@@ -119,18 +124,24 @@ func (r *PostgresBookRepository) FindByID(id int) (*models.BookModel, error) {
 	return book, nil
 }
 
-func (r *PostgresBookRepository) Create(book *models.BookModel) (*models.BookModel, error) {
+func (r *PostgresBookRepository) Create(book *dto.CreateBookRequest) (*models.BookModel, error) {
+
+	var bookId int
 
 	err := r.db.QueryRow(
 		context.Background(),
 		`INSERT INTO books(title,author)VALUES($1,$2)
-		 RETURNING id`, book.Title, book.Author).Scan(&book.ID)
+		 RETURNING id`, book.Title, book.Author).Scan(&bookId)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return book, nil
+	return &models.BookModel{
+		ID:     bookId,
+		Title:  book.Title,
+		Author: book.Author,
+	}, nil
 }
 
 func (r *PostgresBookRepository) Update(book *models.BookModel) (*models.BookModel, error) {
