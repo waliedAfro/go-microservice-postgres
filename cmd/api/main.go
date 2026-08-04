@@ -37,7 +37,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      middleware.Logging(mux),
+		Handler:      middleware.Logging(middleware.CORS(mux)),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -46,5 +46,4 @@ func main() {
 	log.Println("Server started on :8080")
 	log.Fatal(server.ListenAndServe())
 
-	fmt.Println("Wello word ..")
 }
